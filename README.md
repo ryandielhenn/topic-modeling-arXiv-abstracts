@@ -2,9 +2,13 @@
 
 "arXiv is a curated research-sharing platform open to anyone. As a pioneer in digital open access, arXiv.org now hosts more than two million scholarly articles in eight subject areas, curated by our strong community of volunteer moderators" (arXiv.org, n.d.).
 
-## Problem Statement
+## What is the problem? (Step 1)
 
-While arXiv provides search functionality, users must already know specific keywords or topics they're interested in. This project aims to automatically discover and organize the latent topic structure within a specific arXiv subfield (such as cs.AI, stat.ML, or q-bio), revealing research themes, emerging areas, and connections that aren't explicitly labeled—enabling exploratory browsing and helping researchers understand the landscape of research without knowing exactly what to search for.
+While arXiv provides search functionality, users must already know specific keywords or topics they're interested in. This project aims to automatically discover and organize the latent topic structure within a specific arXiv subfield (such as cs.AI, stat.ML, or q-bio), revealing research themes, emerging areas, and connections that aren't explicitly labeled.
+
+## Why does this need to be solved? (Step 2)
+
+This would enable exploratory browsing and help researchers understand the landscape of research within a subfield without knowing exactly what to search for.
 
 ## Data Source
 
