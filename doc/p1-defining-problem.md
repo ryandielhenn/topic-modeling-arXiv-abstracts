@@ -1,4 +1,14 @@
-# Project 1 – Problem Definition
+Joe Jimenez, Ryan Dielhenn, Bohdan Hrotovytskyy, Ryan Goshorn, Matthew Gutierrez  
+
+Professor Beltran  
+
+CS5660  
+
+5 November 2025
+
+\begin{center}
+\textbf{\Large Project 1 – Problem Definition}
+\end{center}
 
 ## What is arXiv?
 
