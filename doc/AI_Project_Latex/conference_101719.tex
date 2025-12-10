@@ -1,0 +1,239 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{float} % for [H] figure placement
+
+\begin{document}
+
+\title{Topic Modeling with arXiv Abstracts}
+
+\author{
+\IEEEauthorblockN{
+Joe Jimenez\quad \\
+Ryan Dielhenn\quad \\
+Bohdan Hrotovytskyy\quad \\
+Ryan Goshorn\quad \\
+Matthew Gutierrez\quad 
+}
+\\
+\\
+\IEEEauthorblockA{
+Department of Computer Science\\
+California State University, Los Angeles\\
+Los Angeles, CA, USA
+}
+}
+
+\maketitle
+
+\begin{abstract}
+The rapid expansion of AI-related research on arXiv has made it increasingly difficult to understand emerging themes across closely related subfields. This project develops an end-to-end unsupervised topic modeling pipeline that automatically discovers and labels research topics from recent arXiv abstracts. Using an offline metadata snapshot of arXiv, we filter papers from AI-relevant categories (cs.AI, cs.LG, cs.CL, cs.CV, cs.NE, cs.RO, stat.ML) with update dates from 2023 onward and extract over 260{,}000 abstracts. Each abstract is cleaned and encoded using OpenAI's \texttt{text-embedding-3-small} model to obtain high-dimensional semantic embeddings. UMAP is then applied for dimensionality reduction, and HDBSCAN is used to identify dense clusters corresponding to latent research topics. We incorporate BERTopic to generate c-TF--IDF keyword summaries and extend its representation models with a locally deployed Llama 3 model (via Ollama) to produce concise, human-readable topic labels. Finally, we visualize the resulting topic landscape through 2-D scatter plots and DataMapPlot projections. Our results show that embedding-based clustering combined with LLM-assisted labeling yields coherent and interpretable topic groupings, demonstrating an effective framework for large-scale scientific text exploration.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Topic modeling, BERTopic, UMAP, HDBSCAN, Llama 3, OpenAI embeddings, arXiv, unsupervised learning, scientific text mining.
+\end{IEEEkeywords}
+
+\section{Introduction}
+
+\subsection{Informal Problem Description}
+In simple terms, our goal is to automatically discover what people are working on in artificial intelligence by reading thousands of recent arXiv abstracts. Instead of manually opening every PDF, our system groups similar papers together and assigns each group a short, readable topic name. This lets a researcher quickly see which areas (for example, large language models, robotics, or medical imaging) are most active and how they relate to one another.
+
+\subsection{Motivation}
+There is a large amount of available published academic journals and papers in public and subscription-based databases. arXiv contains millions of papers and is one of the primary repositories for AI research. Categories such as cs.AI contain a wide range of subfields including reinforcement learning, robotics, multimodal models, and optimization. Due to the scale and diversity of submissions, manually exploring the structure of these research areas is challenging. Automated topic modeling offers a scalable way to reveal thematic clusters and understand how research areas relate to each other.
+
+\subsection{Problem Statement}
+We aim to automatically identify research topics in the cs.AI category using only paper titles and abstracts. Unlike supervised classification, no test topic labels are provided. The task therefore requires unsupervised learning techniques capable of grouping documents by semantic similarity and producing interpretable topic descriptions.
+
+\subsection{Formal Problem Definition and Type}
+Formally, let \(X = \{x_1, x_2, \dots, x_n\}\) be a collection of arXiv titles and abstracts. Our goal is to learn a set of topics \(T = \{t_1, t_2, \dots, t_k\}\), topic assignments \(z_i \in \{1,\dots,k\}\) for each document, and human-readable descriptions \(d_j\) for each topic. This is an \emph{unsupervised learning} problem that combines clustering and topic extraction. The main objectives are to (1) maximize topic coherence, (2) produce interpretable labels, and (3) provide useful visualizations of the research landscape. Constraints include noisy and unevenly distributed abstracts, high-dimensional embeddings, and limited compute. We assume that abstracts reasonably summarize each paper's core contribution and that semantically similar abstracts should belong to the same topic.
+
+\subsection{Contributions}
+Our main contributions include:
+\begin{itemize}
+    \item An end-to-end pipeline for processing over 260k AI-related arXiv abstracts, including data ingestion, transformation, preprocessing, training, and visualization.
+    \item Use of transformer-based embeddings (OpenAI \texttt{text-embedding-3-small}) for semantic document representation.
+    \item Clustering using UMAP for dimensionality reduction and HDBSCAN for density-based topic formation.
+    \item Integration of BERTopic with Llama 3 (via Ollama) to generate concise, human-readable topic labels.
+    \item Visualizations including 2-D document maps, topic frequency plots, and a DataMapPlot topic atlas summarizing the overall cs.AI landscape.
+\end{itemize}
+
+\section{Related Work}
+\subsection{Traditional Topic Models}
+Earlier work in topic modeling primarily used methods such as Latent Dirichlet Allocation (LDA) and Non-negative Matrix Factorization (NMF) \cite{bertopic,umap}. These rely on Bag-of-Words representations, which ignore word order and often struggle with short scientific abstracts.
+
+\subsection{Transformer-Based Representations}
+Modern models such as BERT, SciBERT, and other transformer embeddings capture semantic and contextual meaning, enabling superior clustering performance. BERTopic leverages these embeddings in combination with c-TF--IDF for interpretable topic representations.
+
+\subsection{LLM-Assisted Topic Labeling}
+Large language models such as GPT-4 and Llama 3 can generate human-quality summaries and labels. Recent research highlights the usefulness of LLMs for naming or refining clusters, improving interpretability beyond keyword lists.
+
+\section{System Architecture}
+
+\subsection{Overall Workflow}
+Our pipeline consists of:
+\begin{enumerate}
+    \item Collecting AI-related papers from an offline arXiv metadata snapshot.
+    \item Extracting titles and abstracts.
+    \item Generating embeddings using the OpenAI \texttt{text-embedding-3-small} model.
+    \item Reducing dimensionality with UMAP.
+    \item Clustering documents using HDBSCAN.
+    \item Applying BERTopic to extract topic keywords.
+    \item Using Llama 3 to convert keywords + documents into readable topic labels.
+    \item Visualizing the topic landscape.
+\end{enumerate}
+The overall sequence of these components is summarized in the pipeline diagram in Figure~\ref{fig:pipeline}.
+
+\subsection{Pipeline Diagram}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.34\linewidth]{fig_pipeline_diagram.png}
+    \caption{Overall topic modeling pipeline from raw arXiv metadata to labeled topic visualizations.}
+    \label{fig:pipeline}
+\end{figure}
+
+\subsection{Sub-Models in BERTopic}
+We customize multiple BERTopic components:
+\begin{itemize}\raggedright
+
+    \item Embedding model: OpenAI \texttt{text-embedding-3-small} accessed via the BERTopic OpenAI backend.
+    \item UMAP: 5-dimensional reduction for clustering and 2-D reduction for plotting.
+    \item HDBSCAN: density-based clustering with \texttt{min\_cluster\_size = 15}.
+    \item Representation models: c-TF--IDF, KeyBERT-inspired, maximal marginal relevance (MMR), and Llama 3.
+\end{itemize}
+
+\section{Methodology}
+
+\subsection{Bag-of-Words Demonstration and Manual Solution}
+We begin with a small Bag-of-Words example to illustrate traditional text representation. A short sentence (``John likes to watch movies. Mary likes movies too.'') is tokenized and converted into a word-count dictionary. This demonstration shows how Bag-of-Words captures only term frequencies while ignoring grammar and semantics, motivating the move to embedding-based topic modeling for scientific abstracts.
+
+A purely manual solution to our problem would follow the same spirit: humans would read each abstract, highlight frequent or important words, group papers with similar keywords into rough clusters, and then invent descriptive topic names for each group. For tens of thousands of abstracts this would require many hours of expert reading and would still be inconsistent across annotators, which motivates automating these steps with embeddings, clustering, and LLM-generated labels.
+
+\subsection{Dataset Preparation}
+We load an arXiv metadata JSONL snapshot, filter papers labeled under cs.AI and related AI categories, and extract titles and abstracts. Only papers with versions dated 2023 or later are retained. The final dataset contains 269{,}357 AI-related documents.
+
+\begin{table}[h]
+\centering
+\caption{Dataset Statistics}
+\label{tab:dataset}
+\begin{tabular}{lc}
+\toprule
+Total Abstracts & $\approx$ 269{,}357 \\
+Categories Used & cs.AI, cs.LG, cs.CL, cs.CV, cs.NE, cs.RO, stat.ML \\
+Time Range & 2023--Present \\
+Text Fields & Title + Abstract \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Text Preprocessing}
+We apply a sequence of preprocessing steps used in the notebook: basic URL and symbol removal, HTML stripping, emoji removal, and collapsing repeated characters. We then lowercase, tokenize with NLTK, remove English stopwords, and lemmatize each token. The cleaned abstracts are saved to disk and reused in later runs.
+
+\subsection{Embedding Generation}
+Each cleaned abstract is encoded into a high-dimensional semantic vector using the OpenAI \texttt{text-embedding-3-small} model through BERTopic's \texttt{OpenAIBackend}. Embeddings are cached to a file so that they do not need to be recomputed on subsequent runs.
+
+\subsection{Dimensionality Reduction \& Clustering}
+UMAP reduces embedding dimensionality while preserving global and local structure.  
+HDBSCAN then identifies dense clusters, each corresponding to a potential topic, while treating low-density points as outliers.  
+To build intuition about the geometry of the embedded corpus, we first visualize all documents in the 2-D UMAP space, as shown in Figure~\ref{fig:raw_umap}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{fig_raw_umap.png}
+    \caption{UMAP projection of 266{,}758 cs.AI abstracts before clustering.}
+    \label{fig:raw_umap}
+\end{figure}
+
+\subsection{Topic Representation}
+BERTopic applies c-TF--IDF to produce keyword summaries for each topic. Additional representation models (KeyBERT-inspired and MMR) provide alternative views of the same topics and help refine the final keyword lists.
+
+\subsection{LLM-Based Topic Labeling}
+Keywords and representative abstracts are passed to a Llama 3 model running via Ollama. A structured prompt instructs the model to output a short label (3--7 words) with no extra explanation.  
+Figure~\ref{fig:llama_clean} illustrates how raw LLM outputs are cleaned into standardized topic labels.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{fig_llama_label_cleaning.png}
+    \caption{Raw Llama 3 topic labels vs.\ cleaned labels used in the final model.}
+    \label{fig:llama_clean}
+\end{figure}
+
+\subsection{Challenges and Assumptions}
+Several challenges affect topic modeling on arXiv abstracts. The corpus is noisy, with LaTeX artifacts, abbreviations, and varying writing styles. Topic boundaries can overlap because many papers span multiple subfields, which makes density-based clustering sensitive to UMAP and HDBSCAN parameters. The data are also highly imbalanced, with more papers on popular areas such as large language models than on niche topics. We assume that abstracts accurately summarize each paper, that semantic similarity in the embedding space reflects topical similarity, and that each document can be reasonably assigned a single dominant topic. These assumptions influence topic coherence and the interpretability of the discovered clusters.
+
+\subsection{Experimental Design and Evaluation}
+Our experimental design consists of the following steps: (1) train the BERTopic model with OpenAI embeddings, custom UMAP and HDBSCAN parameters, and Llama 3 representations; (2) generate topic assignments and labels for all documents; (3) create 2-D projections and DataMapPlot visualizations; and (4) inspect topics and example documents.
+
+Because ground-truth topic labels are not available, we rely on qualitative evaluation metrics. We assess topic coherence by inspecting the top c-TF--IDF keywords and representative abstracts per topic, interpretability of the LLM-generated labels, cluster separation in the intertopic distance map, and coverage of major known AI research areas (e.g., reinforcement learning, medical imaging, robotics). Expected outcomes include coherent clusters for prominent subfields and readable topic labels that match human intuition.
+
+\subsection{Implementation Environment}
+All experiments are run in Google Colab using a single NVIDIA A100 GPU. The arXiv metadata is loaded from a Kaggle-hosted snapshot, and the main libraries used include BERTopic, cuML's UMAP and HDBSCAN, Plotly for interactive plots, and DataMapPlot for the final topic map visualization.
+
+\section{Results}
+
+\subsection{Document Landscape Visualization}
+We first examine the global landscape of topics produced by the model. Figure~\ref{fig:topic_map} shows the full topic map generated with DataMapPlot, using 2-D UMAP coordinates and LLM-generated labels.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{fig_topic_analysis_map.png}
+    \caption{Labeled topic landscape generated from UMAP reduction and BERTopic clustering, visualized with DataMapPlot.}
+    \label{fig:topic_map}
+\end{figure}
+
+\subsection{Cluster Visualization}
+To see how individual documents are assigned to topics, we color each point by its final topic label. The resulting cluster structure is shown in Figure~\ref{fig:cluster_scatter}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{fig_cluster_scatter.png}
+    \caption{UMAP scatter plot with topic assignments colored by LLM-generated labels.}
+    \label{fig:cluster_scatter}
+\end{figure}
+
+\subsection{Topic Distribution and Keywords}
+We inspect representative keywords for several prominent topics. Figure~\ref{fig:topic_words} displays the top c-TF--IDF words for eight of the discovered topics and their relative importance, summarizing themes such as medical imaging, adversarial attacks, robotics, and molecular modeling.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{fig_topic_word_scores.png}
+    \caption{Top c-TF--IDF keywords for representative discovered topics.}
+    \label{fig:topic_words}
+\end{figure}
+
+\subsection{Intertopic Distance Map}
+We also analyze how topics relate to one another in aggregate. The intertopic distance map in Figure~\ref{fig:intertopic} summarizes semantic proximity and relative prevalence across all topics.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{fig_intertopic_distance.png}
+    \caption{Intertopic distance map showing spatial relationships between topics.}
+    \label{fig:intertopic}
+\end{figure}
+
+\subsection{Runtime}
+Training the full BERTopic model with custom embeddings and representations required approximately 12 hours on a Google Colab A100 GPU. The most expensive stages were embedding computation and UMAP dimensionality reduction.
+
+\section{Discussion}
+Although many clusters were interpretable, others showed overlap, indicating that UMAP compression and HDBSCAN density thresholds may blur fine-grained boundaries. Some topics remained broad because the embeddings capture general semantic themes (for example, generic ``model/method/data'' topics). Llama 3 labeling improved interpretability but occasionally produced redundant or very similar labels across related clusters. Runtime was dominated by embedding computation and UMAP; caching embeddings and reusing reduced coordinates were important for practical experimentation.
+
+\section{Conclusion}
+This project demonstrates the feasibility of applying transformer-based embeddings, density-based clustering, and LLM-generated labels to large-scale scientific text data. Although some clusters displayed noise and overlap, the combination of UMAP, HDBSCAN, BERTopic, and Llama 3 produced interpretable and coherent topics overall. Future work may explore improved clustering parameters, alternative embedding models, and temporal analysis of topic evolution across years, as well as applying the same pipeline to other arXiv categories beyond cs.AI.
+
+\begin{thebibliography}{00}
+\bibitem{bertopic} M.~Grootendorst, ``BERTopic: Neural topic modeling with LLMs and c-TF--IDF,'' 2022. [Online]. Available: \url{https://maartengr.github.io/BERTopic/}
+\bibitem{umap} L.~McInnes, J.~Healy, and J.~Melville, ``UMAP: Uniform Manifold Approximation and Projection for Dimension Reduction,'' 2018.
+\bibitem{hdbscan} R.~J.~G.~B.~Campello, D.~Moulavi, and J.~Sander, ``Density-based clustering based on hierarchical density estimates,'' in \emph{Advances in Knowledge Discovery and Data Mining}, 2013.
+\bibitem{arxiv} arXiv.org, ``arXiv Metadata Dataset,'' 2024. [Online]. Available: \url{https://www.kaggle.com/datasets/Cornell-University/arxiv}
+\bibitem{datamapplot} W.~P.~Nicholson, ``Topic Analysis of arXiv abstracts with DataMapPlot,'' 2024. [Online]. Available: \url{https://www.williampnicholson.com/2024-02-07-topic-modelling/}
+\end{thebibliography}
+
+\end{document}
