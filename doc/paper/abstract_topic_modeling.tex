@@ -149,7 +149,7 @@ To build intuition about the geometry of the embedded corpus, we first visualize
 \begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{fig_raw_umap.png}
-    \caption{UMAP projection of 266{,}758 cs.AI abstracts before clustering.}
+    \caption{UMAP projection of 266{,}758 abstracts before clustering.}
     \label{fig:raw_umap}
 \end{figure}
 
@@ -179,14 +179,20 @@ Because ground-truth topic labels are not available, we rely on qualitative eval
 All experiments are run in Google Colab using a single NVIDIA A100 GPU. The arXiv metadata is loaded from a Kaggle-hosted snapshot, and the main libraries used include BERTopic, cuML's UMAP and HDBSCAN, Plotly for interactive plots, and DataMapPlot for the final topic map visualization.
 
 \section{Results}
+In this section, we present the results of our topic modeling analysis of over a quarter million abstracts from various AI related categories on arXiv.
 
 \subsection{Document Landscape Visualization}
-We first examine the global landscape of topics produced by the model. Figure~\ref{fig:topic_map} shows the full topic map generated with DataMapPlot, using 2-D UMAP coordinates and LLM-generated labels.
+We first examine the global landscape of topics produced by the model. 
+Topics were identified from all 266,758 AI-related abstracts from 2023-2025 using BERTopic clustering. 
+For visualization clarity, Figure~\ref{fig:topic_map} displays a stratified 
+sample of 10,000 documents, maintaining proportional representation across 
+all discovered topics. The map uses 2-D UMAP coordinates with LLM-generated 
+topic labels rendered via DataMapPlot.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\linewidth]{fig_topic_analysis_map.png}
-    \caption{Labeled topic landscape generated from UMAP reduction and BERTopic clustering, visualized with DataMapPlot.}
+    \caption{Labeled topic landscape from 269,357 arXiv abstracts, visualized using stratified sampling (n=10,000) of UMAP reduced embeddings from BERTopic clustering.}
     \label{fig:topic_map}
 \end{figure}
 
